@@ -15,6 +15,7 @@
 
 require 'paho_mqtt/handler'
 require 'paho_mqtt/connection_helper'
+require 'paho_mqtt/connection_ws_helper'
 require 'paho_mqtt/sender'
 require 'paho_mqtt/publisher'
 require 'paho_mqtt/subscriber'
@@ -31,6 +32,7 @@ module PahoMqtt
     attr_accessor :reconnect_limit
     attr_accessor :reconnect_delay
     attr_accessor :blocking
+    attr_accessor :transport
     attr_accessor :client_id
     attr_accessor :username
     attr_accessor :password
@@ -90,6 +92,8 @@ module PahoMqtt
       if  @client_id.nil? || @client_id == ""
         @client_id = generate_client_id
       end
+
+      puts "[GEM] #{@transport}"
     end
 
     def generate_client_id(prefix='paho_ruby', lenght=16)
@@ -388,7 +392,12 @@ module PahoMqtt
     end
 
     def init_connection
-      @connection_helper         = ConnectionHelper.new(@host, @port, @ssl, @ssl_context, @ack_timeout)
+      if @transport == :web_socket
+        @connection_helper = ConnectionWSHelper.new(@host, @port, @ssl, @ssl_context, @ack_timeout)
+      else
+        @connection_helper = ConnectionHelper.new(@host, @port, @ssl, @ssl_context, @ack_timeout)
+      end
+
       @connection_helper.handler = @handler
       @sender                    = @connection_helper.sender
     end

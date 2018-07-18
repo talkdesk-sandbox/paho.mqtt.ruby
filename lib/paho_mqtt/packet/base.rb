@@ -19,6 +19,9 @@
 #    Pierre Goudet - initial committer
 #    And Others.
 
+require 'websocket'
+require 'pry'
+
 module PahoMqtt
   module Packet
     # Class representing a MQTT Packet
@@ -47,7 +50,7 @@ module PahoMqtt
       def self.read(socket)
         # Read in the packet header and create a new packet object
         packet = create_from_header(
-          read_byte(socket)
+          read_and_build_frame(socket)
         )
 
         unless packet.nil?
@@ -58,7 +61,7 @@ module PahoMqtt
           body_length = 0
           pos = 1
           begin
-            digit = read_byte(socket)
+            digit = read_and_build_frame(socket)
             body_length += ((digit & 0x7F) * multiplier)
             multiplier *= 0x80
             pos += 1
@@ -68,9 +71,19 @@ module PahoMqtt
           packet.instance_variable_set('@body_length', body_length)
 
           # Read in the packet body
-          packet.parse_body(socket.read(body_length))
+          byte = read_length(socket, body_length)
+          packet.parse_body(build_frame(byte))
         end
         packet
+      end
+
+      def self.read_and_build_frame(socket)
+        build_frame(read_byte(socket))
+      end
+
+      def self.build_frame(byte)
+        frame = WebSocket::Frame::Incoming::Server.new(version: 13, data: byte)
+        frame.to_s.to_i
       end
 
       # Parse buffer into new packet object
@@ -123,6 +136,7 @@ module PahoMqtt
         unless byte.nil?
           # Work out the class
           type_id = ((byte & 0xF0) >> 4)
+          binding.pry
           packet_class = PahoMqtt::PACKET_TYPES[type_id]
           if packet_class.nil?
             raise PahoMqtt::PacketFormatException.new(
@@ -305,12 +319,16 @@ module PahoMqtt
 
       # Read and unpack a single byte from a socket
       def self.read_byte(socket)
-        byte = socket.read(1)
+        byte = read_length(socket, 1)
         unless byte.nil?
           byte.unpack('C').first
         else
           nil
         end
+      end
+
+      def self.read_length(socket, length)
+        socket.read(length)
       end
     end
   end
