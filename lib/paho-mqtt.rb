@@ -96,6 +96,7 @@ module PahoMqtt
       :on_pubrec     => nil,
       :on_pubcomp    => nil,
       :on_message    => nil,
+      :transport     => :tcp
   }
 
   Thread.abort_on_exception = true
